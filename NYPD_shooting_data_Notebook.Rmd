@@ -1,0 +1,112 @@
+---
+title: "NYPD Shooting Incident Data"
+
+
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+Loading Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(lubridate)
+library(tidyverse)
+library(ggplot2)
+```
+
+Importing Data
+I will start by reading in the data from the CSV file by using the link
+from <https://catalog.data.gov/dataset>
+
+
+
+```{r import_data, message=FALSE}
+NYPD_shooting_data <- read.csv(url("https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD"))
+```
+
+## Reading the dataset to see what we got.
+
+Will be using the head function to see the first 5 rows of the dataset. 
+
+```{r head}
+head(NYPD_shooting_data,5)
+```
+##Changing the Data Frame.
+
+After looking through the data, I decided to keep: Date, Boro, Perp_Age_group, Perp_sex, Perp_Race, Vic_Age_group, Vic_sex,and Vic_RAce
+
+```{r}
+NYPD_New <- NYPD_shooting_data[c("OCCUR_DATE", "OCCUR_TIME", "BORO", "PERP_AGE_GROUP", "PERP_SEX", "PERP_RACE", "VIC_AGE_GROUP", "VIC_SEX", "VIC_RACE")]
+```
+
+Renaming the columns so that they are more easily readable. Transforming all the blank columns into NA.
+
+```{r}
+colnames(NYPD_New) <- c("Date", "Time", "Region", "Attacker_Age_Group", "Attacker_Gender", "Attacker_Race", "Victim_Age", "Victim_Gender", "Victim_Race")
+NYPD_New[NYPD_New==""]<-NA
+
+NYPD_New<-NYPD_New %>%
+  mutate(Date = mdy(Date))
+
+head(NYPD_New,5)
+
+```
+```{r}
+#replacing Attacker Gender
+NYPD_New$Attacker_Gender[NYPD_New$Attacker_Gender =="M"] <- 1
+NYPD_New$Attacker_Gender[NYPD_New$Attacker_Gender =="F"] <- 0
+NYPD_New$Attacker_Gender[NYPD_New$Attacker_Gender =="U"] <- NA
+
+#replacing Victim Gender
+NYPD_New$Victim_Gender[NYPD_New$Victim_Gender =="M"]<-1
+NYPD_New$Victim_Gender[NYPD_New$Victim_Gender =="F"]<-0
+
+#Replacing Attacker Age Group
+NYPD_New$Attacker_Age_Group[NYPD_New$Attacker_Age_Group=="<18"] <- 0
+NYPD_New$Attacker_Age_Group[NYPD_New$Attacker_Age_Group=="18-24"] <- 1
+NYPD_New$Attacker_Age_Group[NYPD_New$Attacker_Age_Group=="25-44"] <- 2
+NYPD_New$Attacker_Age_Group[NYPD_New$Attacker_Age_Group=="45-64"] <- 3
+NYPD_New$Attacker_Age_Group[NYPD_New$Attacker_Age_Group=="65+"] <- 4
+NYPD_New$Attacker_Age_Group[NYPD_New$Attacker_Age_Group=="UNKNOWN"] <- NA
+
+#Replacing Victim Age Group
+NYPD_New$Victim_Age[NYPD_New$Victim_Age=="<18"] <-0
+NYPD_New$Victim_Age[NYPD_New$Victim_Age=="18-24"] <-1
+NYPD_New$Victim_Age[NYPD_New$Victim_Age=="25-44"] <-2
+NYPD_New$Victim_Age[NYPD_New$Victim_Age=="45-64"] <-3
+NYPD_New$Victim_Age[NYPD_New$Victim_Age=="65+"] <-4
+NYPD_New$Victim_Age[NYPD_New$Victim_Age=="UNKNOWN"] <-NA
+```
+
+
+
+Creating a bar plot to see where the most shooting incidents occur. By this plot, we can easily see Brooklyn has the most shooting incidents.  
+
+```{r}
+barplot(table(NYPD_New$Region), main = "Number of Crimes per Region in NYC", las = 1)
+```
+
+```{r}
+barplot(table(NYPD_New$Attacker_Age_Group), horiz = T, xlab = "Count", ylab = "Age Group", las =1, main = "Attacker Age Group")
+barplot(table(NYPD_New$Victim_Age), horiz = T, xlab = "Count", ylab = "Age Group", las =1, main = "Victim Age Group")
+```
+```{r}
+barplot(table(NYPD_New$Victim_Gender), xlab = "Gender:0=F, 1=M", main = "Victim Gender")
+barplot(table(NYPD_New$Attacker_Gender), xlab = "Gender:0=F, 1= M", main = "Attacker Gender")
+```
+
+```{r}
+
+
+#using only columns that i want to use
+for_model <- NYPD_New[c("Attacker_Gender", "Victim_Gender", "Attacker_Age_Group", "Victim_Age")]
+
+mod1 <- lm(Attacker_Age_Group ~ Victim_Gender + Victim_Age, data = for_model)
+
+```
+
+##Possible Bias Sources: Step 4
+Conclusion to my project and include any possible sources of bias. Be sure to identify what your personal bias might be and how you have mitigated that. 
+I view data for NYC as a whole rather than per borough.
+I disregarded race of the victim, as that may have something to do with the attacker. 
